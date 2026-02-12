@@ -1,0 +1,21 @@
+name: Validate Repo
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Basic checks
+        run: |
+          echo "Listing workflows:"
+          ls -la .github/workflows
+          echo "Docs:"
+          ls -la docs || true
+          echo "Scripts:"
+          ls -la scripts || true

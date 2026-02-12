@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "status | start | stop | restart"
+        description: "status | start | stop | deallocate | restart"
         required: true
         default: "status"
       resourceGroup:
@@ -29,9 +29,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Show current Azure context
-        run: |
-          az account show --output table
+      - name: Show Azure context
+        run: az account show --output table
 
       - name: VM Operation
         shell: bash
@@ -55,14 +54,16 @@ jobs:
               az vm start -g "$RG" -n "$VM"
               ;;
             stop)
-              # stop = power off (nu eliberează costul de compute complet)
               az vm stop -g "$RG" -n "$VM"
+              ;;
+            deallocate)
+              az vm deallocate -g "$RG" -n "$VM"
               ;;
             restart)
               az vm restart -g "$RG" -n "$VM"
               ;;
             *)
-              echo "Invalid action. Use: status | start | stop | restart"
+              echo "Invalid action. Use: status | start | stop | deallocate | restart"
               exit 1
               ;;
           esac

@@ -1,0 +1,15 @@
+# OS / tooling
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# PowerShell
+*.log
+
+# Terraform (dacă ajungi acolo)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log

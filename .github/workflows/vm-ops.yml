@@ -10,9 +10,11 @@ on:
       resourceGroup:
         description: "Resource Group name"
         required: true
+        default: "RG-Lab"
       vmName:
         description: "VM name"
         required: true
+        default: "server2022"
 
 permissions:
   id-token: write

@@ -1,0 +1,17 @@
+{
+  "Name": "VM Power Operator (Start/Stop/Restart)",
+  "IsCustom": true,
+  "Description": "Least-privilege role to read VM power state and perform start/stop/deallocate/restart.",
+  "Actions": [
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Compute/virtualMachines/instanceView/read",
+    "Microsoft.Compute/virtualMachines/start/action",
+    "Microsoft.Compute/virtualMachines/powerOff/action",
+    "Microsoft.Compute/virtualMachines/deallocate/action",
+    "Microsoft.Compute/virtualMachines/restart/action"
+  ],
+  "NotActions": [],
+  "AssignableScopes": [
+    "/subscriptions/b7ce91a3-5078-4af1-93ad-6c9d2218a4b1"
+  ]
+}

@@ -1,4 +1,4 @@
-name: VM Ops via OIDC
+name: VM Ops via OIDC (guarded)
 
 on:
   workflow_dispatch:
@@ -7,34 +7,43 @@ on:
         description: "status | start | stop | deallocate | restart"
         required: true
         default: "status"
+        type: choice
+        options:
+          - status
+          - start
+          - stop
+          - deallocate
+          - restart
       resourceGroup:
-        description: "Resource Group name"
+        description: "Target Resource Group"
         required: true
         default: "RG-Lab"
+        type: string
       vmName:
-        description: "VM name"
+        description: "Target VM name"
         required: true
         default: "server2022"
+        type: string
 
 permissions:
   id-token: write
   contents: read
 
+# Prevent two runs from operating on the same VM at the same time
+concurrency:
+  group: vmops-${{ github.event.inputs.resourceGroup }}-${{ github.event.inputs.vmName }}
+  cancel-in-progress: false
+
+env:
+  # Change these to your real allow-lists
+  ALLOWED_RGS: "RG-Lab"
+  ALLOWED_VMS: "server2022 vm-winsec01 VM-Eah-test"
+
 jobs:
   vm-ops:
     runs-on: ubuntu-latest
     steps:
-      - name: Login to Azure (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Show Azure context
-        run: az account show --output table
-
-      - name: VM Operation
+      - name: Preflight - validate inputs
         shell: bash
         run: |
           set -euo pipefail
@@ -43,14 +52,55 @@ jobs:
           VM="${{ github.event.inputs.vmName }}"
           ACTION="${{ github.event.inputs.action }}"
 
-          echo "Action: $ACTION"
-          echo "RG: $RG"
-          echo "VM: $VM"
+          echo "Requested action: $ACTION"
+          echo "Target RG: $RG"
+          echo "Target VM: $VM"
+
+          # Guardrails: allow-list RG
+          if ! echo " $ALLOWED_RGS " | grep -q " $RG "; then
+            echo "::error::RG '$RG' is not allowed. Allowed: $ALLOWED_RGS"
+            exit 1
+          fi
+
+          # Guardrails: allow-list VM
+          if ! echo " $ALLOWED_VMS " | grep -q " $VM "; then
+            echo "::error::VM '$VM' is not allowed. Allowed: $ALLOWED_VMS"
+            exit 1
+          fi
+
+          # Basic input sanity
+          if [[ "$RG" =~ [^a-zA-Z0-9._-] ]] || [[ "$VM" =~ [^a-zA-Z0-9._-] ]]; then
+            echo "::error::Invalid characters in RG/VM. Use only letters, digits, dot, underscore, dash."
+            exit 1
+          fi
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Show Azure context
+        shell: bash
+        run: |
+          set -euo pipefail
+          az account show --output table
+
+      - name: VM operation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RG="${{ github.event.inputs.resourceGroup }}"
+          VM="${{ github.event.inputs.vmName }}"
+          ACTION="${{ github.event.inputs.action }}"
 
           case "$ACTION" in
             status)
-              az vm get-instance-view -g "$RG" -n "$VM" \
-                --query "instanceView.statuses[?starts_with(code,'PowerState/')].displayStatus | [0]" -o tsv
+              state="$(az vm get-instance-view -g "$RG" -n "$VM" \
+                --query "instanceView.statuses[?starts_with(code,'PowerState/')].displayStatus | [0]" -o tsv)"
+              echo "Power state: ${state:-Unknown}"
               ;;
             start)
               az vm start -g "$RG" -n "$VM"
@@ -65,7 +115,20 @@ jobs:
               az vm restart -g "$RG" -n "$VM"
               ;;
             *)
-              echo "Invalid action. Use: status | start | stop | deallocate | restart"
+              echo "::error::Invalid action: $ACTION"
               exit 1
               ;;
           esac
+
+      - name: Post-check power state
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RG="${{ github.event.inputs.resourceGroup }}"
+          VM="${{ github.event.inputs.vmName }}"
+
+          state="$(az vm get-instance-view -g "$RG" -n "$VM" \
+            --query "instanceView.statuses[?starts_with(code,'PowerState/')].displayStatus | [0]" -o tsv || true)"
+
+          echo "Final power state: ${state:-Unknown}"

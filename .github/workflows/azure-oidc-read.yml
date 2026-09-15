@@ -1,7 +1,21 @@
 name: Azure OIDC Read test
 on:
   workflow_dispatch:
+    inputs:
+      resourceGroup:
+        description: "The name of the resource group to list"
+        required: true
+        type: string
+        default: "RG-lab"
+
   workflow_call:
+    inputs:
+      resourceGroup:
+        description: "The name of the resource group to list"
+        required: true
+        type: string
+        
+
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -26,9 +40,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Show Azure account and resource groups
+        env:
+          TARGET_RG: ${{ inputs.resourceGroup }}
         run: |
           az account show --output table
-          az group list --output table
+          az group show --name "$TARGET_RG" --output table
 
 
 

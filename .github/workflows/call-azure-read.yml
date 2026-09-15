@@ -1,6 +1,13 @@
 name: Call Azure Read
 on:
   workflow_dispatch:
+    inputs:
+      resourceGroup:
+        description: "The name of the resource group to list"
+        required: true
+        type: string
+        default: "RG-lab"
+
     
 jobs:
   call-azure:
@@ -11,3 +18,5 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      resourceGroup: ${{ inputs.resourceGroup }}

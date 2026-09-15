@@ -1,0 +1,11 @@
+name: Call Azure Read
+on:
+  workflow_dispatch:
+    
+jobs:
+  call-azure:
+    permissions:
+      id-token: write
+    uses: ./.github/workflows/azure-oidc-read.yml
+    secrets: inherit
+

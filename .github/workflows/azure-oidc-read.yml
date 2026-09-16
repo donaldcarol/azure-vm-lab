@@ -5,10 +5,16 @@ on:
       resourceGroup:
         description: "The name of the resource group to list"
         required: true
+        default: "RG-Lab"
         type: string
-        default: "RG-lab"
+        
 
   workflow_call:
+    outputs:
+      location:
+        description: "The location of the resource group"
+        value: ${{ jobs.test.outputs.location }}
+
     inputs:
       resourceGroup:
         description: "The name of the resource group to list"
@@ -30,6 +36,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      
+      location: ${{ steps.get_rg.outputs.location }}
+
     steps:
       - name: azure login
         uses: azure/login@v2
@@ -39,12 +49,22 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Show Azure account and resource groups
+      - name: Show Azure account and resource group
+        id: get_rg
         env:
           TARGET_RG: ${{ inputs.resourceGroup }}
         run: |
           az account show --output table
           az group show --name "$TARGET_RG" --output table
+
+          location="$(az group show \
+            --name "$TARGET_RG" \
+            --query location \
+            --output tsv)"
+
+          echo "Resource group location: $location"
+          echo "location=$location" >> "$GITHUB_OUTPUT"
+
 
 
 
